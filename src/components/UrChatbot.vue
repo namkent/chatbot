@@ -5614,16 +5614,15 @@ export default {
   }
 }
 
-// Cách ly và ẩn tuyệt đối bất kỳ phần tử tạm thời nào Mermaid có thể gắn vào body
+// Cách ly phần tử tạm thời Mermaid gắn vào body ra khỏi luồng layout nhưng GIỮ NGUYÊN kích thước đo đạc DOM
 body > [id^="dmmd_"],
 body > [id^="immd_"],
 body > [id^="mmd_"] {
-  display: none !important;
-  position: absolute !important;
-  pointer-events: none !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: -9999px !important;
   opacity: 0 !important;
-  width: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+  pointer-events: none !important;
+  z-index: -9999 !important;
 }
 </style>
