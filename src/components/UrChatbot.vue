@@ -1037,10 +1037,10 @@ import mermaid from '@/vendor/mermaid.js';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
-// Khởi tạo Mermaid với theme 'default' nhiều màu sắc sinh động, dễ quan sát
+// Khởi tạo Mermaid với theme 'neutral' thanh lịch, hiện đại, tối giản
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'default',
+  theme: 'neutral',
   securityLevel: 'loose',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif'
 });
