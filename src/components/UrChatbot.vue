@@ -2290,53 +2290,45 @@ export default {
 
       return { clonedSvg, width, height };
     },
+    triggerFileDownload(href, filename) {
+      if (!href) return;
+      try {
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.setAttribute('download', filename);
+        a.setAttribute('href', href);
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (a.parentNode) {
+            a.parentNode.removeChild(a);
+          }
+        }, 500);
+      } catch (err) {
+        console.error('[File Download Error]:', err);
+      }
+    },
     downloadSvgElementAsSvg(svgEl, filename) {
       if (!svgEl) return;
       try {
         const defaultName = 'mermaid-diagram-' + new Date().toISOString().slice(0, 10) + '.svg';
         const finalName = filename ? filename.replace(/\.png$/i, '.svg') : defaultName;
 
-        const clonedSvg = svgEl.cloneNode(true);
-        clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
-
-        let width = svgEl.clientWidth || 800;
-        let height = svgEl.clientHeight || 600;
-        const vb = svgEl.getAttribute('viewBox');
-        if (vb) {
-          const parts = vb.trim().split(/[\s,]+/).map(Number);
-          if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
-            width = parts[2];
-            height = parts[3];
-          }
-        }
-        clonedSvg.setAttribute('width', width);
-        clonedSvg.setAttribute('height', height);
-        if (!clonedSvg.getAttribute('viewBox')) {
-          clonedSvg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+        let svgString = '';
+        const prep = this.prepareSvgForExport(svgEl);
+        if (prep && prep.clonedSvg) {
+          svgString = new XMLSerializer().serializeToString(prep.clonedSvg);
+        } else {
+          const clonedSvg = svgEl.cloneNode(true);
+          clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+          clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+          svgString = new XMLSerializer().serializeToString(clonedSvg);
         }
 
-        // Chèn nền trắng cho SVG tải về
-        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        bgRect.setAttribute('x', '0');
-        bgRect.setAttribute('y', '0');
-        bgRect.setAttribute('width', '100%');
-        bgRect.setAttribute('height', '100%');
-        bgRect.setAttribute('fill', '#ffffff');
-        clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
-
-        const svgString = new XMLSerializer().serializeToString(clonedSvg);
-        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        const URL = window.URL || window.webkitURL || window;
-        const blobUrl = URL.createObjectURL(svgBlob);
-
-        const a = document.createElement('a');
-        a.download = finalName;
-        a.href = blobUrl;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        // Dùng Data URL trực tiếp (không dùng Blob URL có createObjectURL/revokeObjectURL)
+        // để tránh hoàn toàn lỗi Chrome bị abort stream và lưu file không có extension
+        const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        this.triggerFileDownload(dataUrl, finalName);
       } catch (err) {
         console.error('[Mermaid Export SVG Error]:', err);
       }
@@ -2348,7 +2340,10 @@ export default {
 
       try {
         const prep = this.prepareSvgForExport(svgEl);
-        if (!prep) return;
+        if (!prep) {
+          this.downloadSvgElementAsSvg(svgEl, finalName.replace(/\.png$/i, '.svg'));
+          return;
+        }
         const { clonedSvg, width, height } = prep;
         const svgString = new XMLSerializer().serializeToString(clonedSvg);
 
@@ -2376,37 +2371,10 @@ export default {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            const a = document.createElement('a');
-            a.download = finalName;
-
-            let exported = false;
-            if (canvas.toBlob) {
-              try {
-                canvas.toBlob((blob) => {
-                  if (!blob) {
-                    this.downloadSvgElementAsSvg(svgEl, finalName.replace(/\.png$/i, '.svg'));
-                    return;
-                  }
-                  const URL = window.URL || window.webkitURL || window;
-                  const pngUrl = URL.createObjectURL(blob);
-                  a.href = pngUrl;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
-                }, 'image/png');
-                exported = true;
-              } catch (blobErr) {
-                console.warn('[Mermaid Export PNG] toBlob failed, trying toDataURL...', blobErr);
-              }
-            }
-
-            if (!exported) {
-              a.href = canvas.toDataURL('image/png');
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-            }
+            // Dùng trực tiếp canvas.toDataURL('image/png') cho download
+            // Loại bỏ hoàn toàn createObjectURL và revokeObjectURL 1s gây hủy download trên Chromium
+            const pngDataUrl = canvas.toDataURL('image/png');
+            this.triggerFileDownload(pngDataUrl, finalName);
           } catch (canvasErr) {
             console.warn('[Mermaid Export PNG] Canvas export security error, auto-fallback to SVG:', canvasErr);
             this.downloadSvgElementAsSvg(svgEl, finalName.replace(/\.png$/i, '.svg'));
@@ -3867,8 +3835,6 @@ export default {
     font-size: 13.5px;
     line-height: 1.6;
     word-break: break-word;
-    content-visibility: auto;
-    contain-intrinsic-size: auto 80px;
     position: relative;
 
     &.ur-chatbot-msg-user,
@@ -4959,7 +4925,6 @@ export default {
     border-radius: 10px;
     background: #ffffff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-    overflow: hidden;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
     &:hover {
@@ -4969,14 +4934,18 @@ export default {
   }
 
   .ur-chatbot-mermaid-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 6px 12px;
     background: #f6f8fa;
     border-bottom: 1px solid #d0d7de;
-    border-radius: 7px 7px 0 0;
+    border-radius: 9px 9px 0 0;
     user-select: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   }
 
   .ur-chatbot-mermaid-badge {
