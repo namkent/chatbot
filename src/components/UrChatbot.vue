@@ -985,6 +985,19 @@
               </button>
               <button
                 type="button"
+                class="ur-chatbot-btn-header-action btn-header-action"
+                title="Download SVG (Vector)"
+                @click="downloadCurrentMermaidSvg"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="12" y1="18" x2="12" y2="12"></line>
+                  <polyline points="9 15 12 18 15 15"></polyline>
+                </svg>
+              </button>
+              <button
+                type="button"
                 class="ur-chatbot-btn-header-action ur-chatbot-btn-close btn-close-chat"
                 title="Close (Esc)"
                 @click="closeMermaidModal"
@@ -1171,11 +1184,19 @@ md.renderer.rules.fence = function (tokens, idx) {
               <line x1="3" y1="21" x2="10" y2="14"></line>
             </svg>
           </button>
-          <button type="button" class="ur-chatbot-mermaid-btn btn-download-mermaid" title="Tải ảnh biểu đồ PNG">
+          <button type="button" class="ur-chatbot-mermaid-btn btn-download-mermaid" title="Tải ảnh PNG">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+          <button type="button" class="ur-chatbot-mermaid-btn btn-download-mermaid-svg" title="Tải file vector SVG">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <polyline points="9 15 12 18 15 15"></polyline>
             </svg>
           </button>
           <button type="button" class="ur-chatbot-mermaid-btn btn-toggle-mermaid-code" title="Xem mã nguồn">
@@ -2003,7 +2024,7 @@ export default {
       const openMermaidBtn = e.target.closest('.btn-open-mermaid, .ur-chatbot-mermaid-preview');
       if (openMermaidBtn) {
         // Bỏ qua nếu người dùng click vào các nút hành động khác bên trong card
-        if (e.target.closest('.btn-toggle-mermaid-code, .btn-copy-mermaid, .btn-download-mermaid, .ur-chatbot-mermaid-code-view')) {
+        if (e.target.closest('.btn-toggle-mermaid-code, .btn-copy-mermaid, .btn-download-mermaid, .btn-download-mermaid-svg, .ur-chatbot-mermaid-code-view')) {
           return;
         }
         const card = openMermaidBtn.closest('.ur-chatbot-mermaid-card');
@@ -2027,6 +2048,19 @@ export default {
           const svgEl = card.querySelector('.ur-chatbot-mermaid-target svg');
           if (svgEl) {
             this.downloadSvgElementAsPng(svgEl);
+          }
+        }
+        return;
+      }
+
+      // 6b. Xử lý nút tải file vector SVG biểu đồ Mermaid trực tiếp từ card
+      const downloadMermaidSvgBtn = e.target.closest('.btn-download-mermaid-svg');
+      if (downloadMermaidSvgBtn) {
+        const card = downloadMermaidSvgBtn.closest('.ur-chatbot-mermaid-card');
+        if (card) {
+          const svgEl = card.querySelector('.ur-chatbot-mermaid-target svg');
+          if (svgEl) {
+            this.downloadSvgElementAsSvg(svgEl);
           }
         }
         return;
@@ -2146,19 +2180,128 @@ export default {
         this.downloadSvgElementAsPng(svgEl, 'mermaid-diagram-full.png');
       }
     },
-    downloadSvgElementAsPng(svgEl, filename) {
+    downloadCurrentMermaidSvg() {
+      const container = this.$refs.mermaidModalCanvas;
+      if (!container) return;
+      const svgEl = container.querySelector('svg');
+      if (svgEl) {
+        this.downloadSvgElementAsSvg(svgEl, 'mermaid-diagram-full.svg');
+      }
+    },
+    prepareSvgForExport(svgEl) {
+      if (!svgEl) return null;
+      const clonedSvg = svgEl.cloneNode(true);
+
+      // Xác định kích thước chuẩn
+      let width = svgEl.clientWidth || 800;
+      let height = svgEl.clientHeight || 600;
+
+      const vb = svgEl.getAttribute('viewBox');
+      if (vb) {
+        const parts = vb.trim().split(/[\s,]+/).map(Number);
+        if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+          width = parts[2];
+          height = parts[3];
+        }
+      }
+
+      clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+      clonedSvg.setAttribute('width', width);
+      clonedSvg.setAttribute('height', height);
+      if (!clonedSvg.getAttribute('viewBox')) {
+        clonedSvg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+      }
+
+      // Tạo nền trắng (#ffffff) để ảnh không bị đen/trong suốt
+      const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bgRect.setAttribute('x', '0');
+      bgRect.setAttribute('y', '0');
+      bgRect.setAttribute('width', '100%');
+      bgRect.setAttribute('height', '100%');
+      bgRect.setAttribute('fill', '#ffffff');
+      clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
+
+      // Chuyển đổi toàn bộ <foreignObject> thành SVG <text> để loại bỏ hoàn toàn nguy cơ Tainted Canvas trong Chromium
+      const foreignObjects = Array.from(clonedSvg.querySelectorAll('foreignObject'));
+      foreignObjects.forEach((fo, foIdx) => {
+        const foWidth = parseFloat(fo.getAttribute('width')) || 0;
+        const foHeight = parseFloat(fo.getAttribute('height')) || 0;
+        const x = parseFloat(fo.getAttribute('x')) || 0;
+        const y = parseFloat(fo.getAttribute('y')) || 0;
+
+        const labelEl = fo.querySelector('.nodeLabel, span, p, div') || fo;
+        const textContent = (labelEl.textContent || fo.textContent || '').trim();
+        if (!textContent) {
+          fo.remove();
+          return;
+        }
+
+        let textColor = '#1e293b';
+        let fontSize = '14px';
+        let fontWeight = '500';
+        let fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+        if (typeof window !== 'undefined') {
+          try {
+            const origFoList = svgEl.querySelectorAll('foreignObject');
+            const origFo = origFoList[foIdx] || svgEl.querySelector(`[id="${fo.id}"]`);
+            if (origFo) {
+              const origLabel = origFo.querySelector('.nodeLabel, span, p, div') || origFo;
+              const comp = window.getComputedStyle(origLabel);
+              if (comp.color && comp.color !== 'rgba(0, 0, 0, 0)') textColor = comp.color;
+              if (comp.fontSize) fontSize = comp.fontSize;
+              if (comp.fontWeight) fontWeight = comp.fontWeight;
+              if (comp.fontFamily) fontFamily = comp.fontFamily;
+            }
+          } catch (e) {}
+        }
+
+        const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textEl.setAttribute('x', x + foWidth / 2);
+        textEl.setAttribute('y', y + foHeight / 2);
+        textEl.setAttribute('text-anchor', 'middle');
+        textEl.setAttribute('dominant-baseline', 'central');
+        textEl.setAttribute('alignment-baseline', 'middle');
+        textEl.setAttribute('fill', textColor);
+        textEl.setAttribute('font-size', fontSize);
+        textEl.setAttribute('font-weight', fontWeight);
+        textEl.setAttribute('font-family', fontFamily);
+
+        const lines = textContent.split(/\r?\n|<br\s*\/?>/i).map(l => l.trim()).filter(Boolean);
+        if (lines.length > 1) {
+          const lineHeight = parseFloat(fontSize) * 1.25 || 16;
+          const startY = (y + foHeight / 2) - ((lines.length - 1) * lineHeight) / 2;
+          lines.forEach((lineText, idx) => {
+            const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            tspan.textContent = lineText;
+            tspan.setAttribute('x', x + foWidth / 2);
+            tspan.setAttribute('y', startY + idx * lineHeight);
+            textEl.appendChild(tspan);
+          });
+        } else {
+          textEl.textContent = textContent;
+        }
+
+        if (fo.parentNode) {
+          fo.parentNode.replaceChild(textEl, fo);
+        }
+      });
+
+      return { clonedSvg, width, height };
+    },
+    downloadSvgElementAsSvg(svgEl, filename) {
       if (!svgEl) return;
       try {
-        const defaultName = 'mermaid-diagram-' + new Date().toISOString().slice(0, 10) + '.png';
-        const finalName = filename || defaultName;
+        const defaultName = 'mermaid-diagram-' + new Date().toISOString().slice(0, 10) + '.svg';
+        const finalName = filename ? filename.replace(/\.png$/i, '.svg') : defaultName;
 
-        // Clone node SVG để thao tác mà không ảnh hưởng DOM hiện tại
         const clonedSvg = svgEl.cloneNode(true);
+        clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 
-        // Xác định kích thước chuẩn
         let width = svgEl.clientWidth || 800;
         let height = svgEl.clientHeight || 600;
-
         const vb = svgEl.getAttribute('viewBox');
         if (vb) {
           const parts = vb.trim().split(/[\s,]+/).map(Number);
@@ -2167,71 +2310,118 @@ export default {
             height = parts[3];
           }
         }
-
-        clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
         clonedSvg.setAttribute('width', width);
         clonedSvg.setAttribute('height', height);
         if (!clonedSvg.getAttribute('viewBox')) {
           clonedSvg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
         }
 
-        // Tạo nền trắng (#ffffff) để ảnh PNG không bị đen/trong suốt
+        // Chèn nền trắng cho SVG tải về
         const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('x', '0');
+        bgRect.setAttribute('y', '0');
         bgRect.setAttribute('width', '100%');
         bgRect.setAttribute('height', '100%');
         bgRect.setAttribute('fill', '#ffffff');
         clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
 
-        // Serialize SVG sang chuỗi XML
         const svgString = new XMLSerializer().serializeToString(clonedSvg);
         const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
         const URL = window.URL || window.webkitURL || window;
         const blobUrl = URL.createObjectURL(svgBlob);
 
+        const a = document.createElement('a');
+        a.download = finalName;
+        a.href = blobUrl;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      } catch (err) {
+        console.error('[Mermaid Export SVG Error]:', err);
+      }
+    },
+    downloadSvgElementAsPng(svgEl, filename) {
+      if (!svgEl) return;
+      const defaultName = 'mermaid-diagram-' + new Date().toISOString().slice(0, 10) + '.png';
+      const finalName = filename || defaultName;
+
+      try {
+        const prep = this.prepareSvgForExport(svgEl);
+        if (!prep) return;
+        const { clonedSvg, width, height } = prep;
+        const svgString = new XMLSerializer().serializeToString(clonedSvg);
+
+        // Chuyển sang Base64 Data URL để tránh tainting do blob url trong trình duyệt
+        let base64Svg;
+        try {
+          base64Svg = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+        } catch (e) {
+          base64Svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        }
+
         const img = new Image();
+        img.crossOrigin = 'anonymous';
+
         img.onload = () => {
-          // Xuất ảnh ở tỉ lệ 2x (hoặc tối thiểu 1600px width) để siêu sắc nét
-          const scale = 2;
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.max(Math.round(width * scale), 1600);
-          const ratio = canvas.width / width;
-          canvas.height = Math.round(height * ratio);
+          try {
+            const scale = 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(Math.round(width * scale), 1600);
+            const ratio = canvas.width / width;
+            canvas.height = Math.round(height * ratio);
 
-          const ctx = canvas.getContext('2d');
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          URL.revokeObjectURL(blobUrl);
+            const a = document.createElement('a');
+            a.download = finalName;
 
-          if (canvas.toBlob) {
-            canvas.toBlob((blob) => {
-              if (!blob) return;
-              const pngUrl = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.download = finalName;
-              a.href = pngUrl;
+            let exported = false;
+            if (canvas.toBlob) {
+              try {
+                canvas.toBlob((blob) => {
+                  if (!blob) {
+                    this.downloadSvgElementAsSvg(svgEl, finalName.replace(/\.png$/i, '.svg'));
+                    return;
+                  }
+                  const URL = window.URL || window.webkitURL || window;
+                  const pngUrl = URL.createObjectURL(blob);
+                  a.href = pngUrl;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+                }, 'image/png');
+                exported = true;
+              } catch (blobErr) {
+                console.warn('[Mermaid Export PNG] toBlob failed, trying toDataURL...', blobErr);
+              }
+            }
+
+            if (!exported) {
+              a.href = canvas.toDataURL('image/png');
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
-              setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
-            }, 'image/png');
-          } else {
-            const a = document.createElement('a');
-            a.download = finalName;
-            a.href = canvas.toDataURL('image/png');
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            }
+          } catch (canvasErr) {
+            console.warn('[Mermaid Export PNG] Canvas export security error, auto-fallback to SVG:', canvasErr);
+            this.downloadSvgElementAsSvg(svgEl, finalName.replace(/\.png$/i, '.svg'));
           }
         };
+
         img.onerror = (e) => {
-          console.error('[Mermaid Export PNG Error]:', e);
-          URL.revokeObjectURL(blobUrl);
+          console.warn('[Mermaid Export PNG] Image load error, auto-fallback to SVG:', e);
+          this.downloadSvgElementAsSvg(svgEl, finalName.replace(/\.png$/i, '.svg'));
         };
-        img.src = blobUrl;
+
+        img.src = base64Svg;
       } catch (err) {
-        console.error('Lỗi khi tải ảnh PNG biểu đồ Mermaid:', err);
+        console.warn('[Mermaid Export PNG] Exception occurred, auto-fallback to SVG:', err);
+        this.downloadSvgElementAsSvg(svgEl, finalName.replace(/\.png$/i, '.svg'));
       }
     },
     toggleChat(forceState) {
