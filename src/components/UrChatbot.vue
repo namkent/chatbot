@@ -1037,20 +1037,12 @@ import mermaid from '@/vendor/mermaid.js';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
-// Khởi tạo Mermaid với theme sáng sang trọng, hiện đại
+// Khởi tạo Mermaid với theme 'default' nhiều màu sắc sinh động, dễ quan sát
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'neutral',
+  theme: 'default',
   securityLevel: 'loose',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif',
-  themeVariables: {
-    primaryColor: '#e0f2fe',
-    primaryTextColor: '#0369a1',
-    primaryBorderColor: '#38bdf8',
-    lineColor: '#64748b',
-    secondaryColor: '#f8fafc',
-    tertiaryColor: '#ffffff'
-  }
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif'
 });
 
 // Khởi tạo MarkdownIt cho UrChatbot (Độc lập 100% trong component)
